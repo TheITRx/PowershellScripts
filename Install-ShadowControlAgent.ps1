@@ -27,8 +27,6 @@ Function Install-ShadowControlAgent {
         Start-Process powershell -Verb runAs -ArgumentList $arguments
         Break
     }
-
-    
     #Logging
     $SN = $MyInvocation.MyCommand.Name; Function WL($LE) { $LN = (Get-Date -Format "MMddyy:HHmmss") + " - $LE"; $LN | Out-File -FilePath "$PSScriptRoot\$SN-log.txt" -Append -NoClobber -Encoding "Default"; $LN }
     #Ignore SSL
