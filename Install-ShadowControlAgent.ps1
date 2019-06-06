@@ -14,7 +14,7 @@ Function Install-ShadowControlAgent {
     .NOTES
         General notes
     #>
-
+    
     # Parameter help description
     [Parameter(Mandatory)]
     [String]$SHadowControlServer
