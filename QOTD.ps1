@@ -1,22 +1,32 @@
-﻿<#
+﻿
+<#
+.SYNOPSIS
+    Short description
+.DESCRIPTION
+    Long description
+.EXAMPLE
+    PS C:\> <example usage>
+    Explanation of what the example does
+.INPUTS
+    Inputs (if any)
+.OUTPUTS
+    Output (if any)
+.NOTES
 
-Date:           August 18, 2017 
+    Description:    Just having  fun with Powershell. This guy uses internet
+                    Explorer com objects to go to fuckinghomepage.com and grabs a random quote. 
+                    Then it logs in to facebook and post a status. All programatically and discretely.
 
-Description:    Just having  fun with Powershell. This guy uses internet
-                Explorer com objects to go to fuckinghomepage.com and grabs a random quote. 
-                Then it logs in to facebook and post a status. All programatically and discretely.
+                    Fuckinghomepage.com is an awesome website. Been a huge fan of it!
 
-                Fuckinghomepage.com is an awesome website. Been a huge fan of it!
+    Usage:          On first run, it will ask for your facebook password and will hash it 
+                    locally where the powershell script is saved. This way it won't ask for
+                    the password anymore. One time ask! You also need to change the 
+                    $fb_un variable to user Facebook login. Lastly, schedule a task/job to 
+                    run it periodically. 
 
-Usage:          On first run, it will ask for your facebook password and will hash it 
-                locally where the powershell script is saved. This way it won't ask for
-                the password anymore. One time ask! You also need to change the 
-                $fb_un variable to user Facebook login. Lastly, schedule a task/job to 
-                run it periodically. 
-
-Note:           I know, no one would get interested in this code. Well, I'm just having fun!
-                For educational purposes only!
-
+    Note:           I know, no one would get interested in this code. Well, I'm just having fun!
+                    For educational purposes only!
 #>
 
 $fb_un = "enjoyjocel@gmail.com"
