@@ -29,7 +29,7 @@
                     For educational purposes only!
 #>
 
-$fb_un = "enjoyjocel@gmail.com"
+$fb_un = "" # FB Username
 
 function sleep-me{
         while ($ie.Busy -eq $true){
