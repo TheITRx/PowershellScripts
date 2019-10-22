@@ -1,95 +1,68 @@
-Function Install-ShadowControlAgent {
+$Check_CLDir = Test-Path "C:\Program Files (x86)\StorageCraft\CMD\stccmd"
+$shadowControlServer = ""
 
-    <#
-    .SYNOPSIS
-        Install-ShadowControlAgent
-    .DESCRIPTION
-        Downloads the Shadowcontrolagent from your the ShadowControlServer and install and subscribes it. 
-    .EXAMPLE
-        PS C:\> Install-ShadowControlAgent -SHadowControlServer scserver.TheITRx.com
-    .INPUTS
-        Inputs (if any)
-    .OUTPUTS
-        Output (if any)
-    .NOTES
-        General notes
-    #>
-    
-    # Parameter help description
-    [Parameter(Mandatory)]
-    [String]$SHadowControlServer
+# Force to run as admin
+If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
 
-    # Force to run as admin
+{   
+$arguments = "& '" + $myinvocation.mycommand.definition + "'"
+Start-Process powershell -Verb runAs -ArgumentList $arguments
+Break
+}
 
-    If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { 
-        
-        $arguments = "& '" + $myinvocation.mycommand.definition + "'"
-        Start-Process powershell -Verb runAs -ArgumentList $arguments
-        Break
-    }
-    #Logging
-    $SN = $MyInvocation.MyCommand.Name; Function WL($LE) { $LN = (Get-Date -Format "MMddyy:HHmmss") + " - $LE"; $LN | Out-File -FilePath "$PSScriptRoot\$SN-log.txt" -Append -NoClobber -Encoding "Default"; $LN }
-    #Ignore SSL
-    Add-Type @"
-        using System.Net;
-        using System.Security.Cryptography.X509Certificates;
-        public class TrustAllCertsPolicy : ICertificatePolicy {
-            public bool CheckValidationResult(
-                ServicePoint srvPoint, X509Certificate certificate,
-                WebRequest request, int certificateProblem) {
-                return true;
-            }
+$SN = $MyInvocation.MyCommand.Name; Function WL($LE) {$LN = (Get-Date -Format "MMddyy:HHmmss") + " - $LE"; $LN | Out-File -FilePath "$PSScriptRoot\$SN-log.txt" -Append -NoClobber -Encoding "Default"; $LN }
+Add-Type @"
+    using System.Net;
+    using System.Security.Cryptography.X509Certificates;
+    public class TrustAllCertsPolicy : ICertificatePolicy {
+        public bool CheckValidationResult(
+            ServicePoint srvPoint, X509Certificate certificate,
+            WebRequest request, int certificateProblem) {
+            return true;
         }
+    }
 "@
-    [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
 
-    Function Start-SCService { 
+if (!$Check_CLDir) {
 
-        WL "Starting Service"
-        Start-Service stc_endpt_svc
-        Set-Location "C:\Program Files (x86)\StorageCraft\CMD"
-        WL "Subscribing"
-        $OutEx = .\stccmd subscribe $SHadowControlServer
-        WL $OutEx
-    }
-
-    $Check_CLDir = Test-Path "C:\Program Files (x86)\StorageCraft\CMD\stccmd.EXE"
-    if (!$Check_CLDir) {
-
-        while ((Test-Path "$($PSScriptRoot)\ShadowControl_Installer.msi") -eq $false) { 
-                
-            WL "Downloading File"
-            $Res = Invoke-WebRequest "https://$SHadowControlServer/api/installer/msi/download/" -OutFile "$($PSScriptRoot)\ShadowControl_Installer.msi"
-        }
-
-        WL "Download finished. Installing now."
-        Set-Location "$($PSScriptRoot)"
-        Start-Process msiexec.exe -Wait -ArgumentList "/i ShadowControl_Installer.msi /quiet"
-        WL "Install Finished"
-
-        while ((Test-Path "C:\Program Files (x86)\StorageCraft\CMD\stccmd.exe") -eq $false) {
-            WL "Still installing"
-            Start-Sleep -Seconds 5
-        }
+    while ((Test-Path "$($env:Appdata)\Shadow_Controll_Installer.msi") -eq $false) { 
         
-        try { 
-            Start-SCService 
-        }
-
-        Catch { 
-            WL "fail to start service."
-        }
+        WL "Downloading File"
+        $Res = Invoke-WebRequest "https://$shadowControlServer/api/installer/msi/download/" -OutFile "$($env:Appdata)\Shadow_Controll_Installer.msi"
     }
 
-    Else { 
+    WL "Download finished. Installing now."
+    Set-Location "$($env:Appdata)"
 
-        try { 
-            WL "Current install is present. Will the start the service and re-checkin"
-            Start-SCService
-        }
+    If((Test-Path "C:\Program Files (x86)\StorageCraft\CMD\stccmd.exe") -eq $false) {
 
-        Catch { 
-            WL "fail to start service."
-        }
+        Start-process msiexec.exe -Wait -ArgumentList "/i Shadow_Controll_Installer.msi /quiet"
+        WL "Install Finished"
     }
+
+    else{
+        WL "Current installation is present"
+    }
+
+    while ((Test-Path "C:\Program Files (x86)\StorageCraft\CMD\stccmd.exe") -eq $false) {
+        WL "Still installing"
+        Start-Sleep -Seconds 5
+    }
+
+    get-service stc_endpt_svc | start-service 
+	
+	if(!($?)) {
+		WL "Error Starting Service"
+	}
+
+    ELSE{
+        WL "Service started"
+    }
+	
+    Set-Location "C:\Program Files (x86)\StorageCraft\CMD"
+    WL "Subscribing $($env:COMPUTERNAME)"
+    $OutEx = .\stccmd subscribe $shadowControlServer
+
+    WL $OutEx
 }

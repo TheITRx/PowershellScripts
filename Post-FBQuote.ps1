@@ -19,7 +19,7 @@ Note:           I know, no one would get interested in this code. Well, I'm just
 
 #>
 
-$fb_un = ""
+$fb_un = "enjoyjocel@gmail.com"
 
 function sleep-me{
         while ($ie.Busy -eq $true){
@@ -52,7 +52,7 @@ function create-intro{
     $rand = Get-Random -Maximum $good_word.Length
     
     $day = Get-Date -Format dddd
-    $intro = "Words of this " + $good_word[$rand] + " " + "$day." 
+    $intro = "Word of this " + $good_word[$rand] + " " + "$day." 
     $intro
 
 }
@@ -129,8 +129,4 @@ function main {
     
 }
 
-# main
-
-$quote_now = get-quote
-$quote_now 
-#login-fb -status $quote_now
+main
