@@ -19,13 +19,10 @@ param(
 
 # Build the logon script dynamically
 $scriptPath = "C:\ProgramData\$TaskName.ps1"
-
+cmd.exe /C "cmdkey /add:`"$StorageAccountFQDN`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageKey`""
 $scriptContent = @"
 `$connectTestResult = Test-NetConnection -ComputerName $StorageAccountFQDN -Port 445
 if (`$connectTestResult.TcpTestSucceeded) {
-
-    cmd.exe /C "cmdkey /add:`"$StorageAccountFQDN`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageKey`""
-
     New-PSDrive -Name $DriveLetter -PSProvider FileSystem -Root "\\$StorageAccountFQDN\$ShareName" -Persist
 }
 else {
@@ -54,5 +51,6 @@ Register-ScheduledTask `
     -Trigger $trigger `
     -Principal $principal `
     -Force
+
 
 Write-Host "Scheduled task '$TaskName' created successfully."
