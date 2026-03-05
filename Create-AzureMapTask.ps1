@@ -18,23 +18,31 @@ param(
 )
 
 # Build the logon script dynamically
-$scriptPath = "C:\ProgramData\$TaskName.ps1"
+$scriptDirectory = "C:\ProgramData\InfraTools"
+$scriptPath = Join-Path $scriptDirectory "$TaskName.ps1"
+$resultPath = Join-Path $scriptDirectory "$TaskName-result.log"
 
 $scriptContent = @"
-`$connectTestResult = Test-NetConnection -ComputerName $StorageAccountFQDN -Port 445
-if (`$connectTestResult.TcpTestSucceeded) {
+`$resultPath = "$resultPath"
+`$timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
 
+try {
     cmd.exe /C "cmdkey /add:``"$StorageAccountFQDN``" /user:``"localhost\$StorageAccountName``" /pass:``"$StorageKey``""
-
     New-PSDrive -Name $DriveLetter -PSProvider FileSystem -Root "\\$StorageAccountFQDN\$ShareName" -Persist
+
+    "[`$timestamp] SUCCESS: Mapped drive $DriveLetter to \\$StorageAccountFQDN\$ShareName." | Out-File -FilePath `$resultPath -Append -Encoding utf8
 }
-else {
-    Write-Error "Unable to reach $StorageAccountFQDN over port 445."
+catch {
+    `$errorMessage = `$_.Exception.Message
+    "[`$timestamp] ERROR: Failed to map drive $DriveLetter to \\$StorageAccountFQDN\$ShareName. Error: `$errorMessage" | Out-File -FilePath `$resultPath -Append -Encoding utf8
+    Write-Error "Failed to map drive $DriveLetter. `$errorMessage"
 }
 "@
 
 # Write the script file
-New-Item -ItemType Directory -Path "C:\ProgramData" -Force | Out-Null
+if (-not (Test-Path -Path $scriptDirectory)) {
+    New-Item -ItemType Directory -Path $scriptDirectory -Force | Out-Null
+}
 Set-Content -Path $scriptPath -Value $scriptContent -Force
 
 # Create scheduled task components
