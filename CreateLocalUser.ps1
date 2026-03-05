@@ -16,7 +16,7 @@ New-LocalUser `
     -Name $Username `
     -Password $SecurePassword `
     -FullName $Username `
-    -Description "Local account created via script" `
+    -Description "Main regular user for this VM" `
     -PasswordNeverExpires:$true
 
 Write-Host "User $Username created successfully."
