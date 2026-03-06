@@ -1,3 +1,4 @@
+[CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
     [ValidateNotNullOrEmpty()]
@@ -9,10 +10,6 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-
-function Write-Info([string]$Msg) { Write-Host "[INFO]  $Msg" }
-function Write-Warn([string]$Msg) { Write-Host "[WARN]  $Msg" -ForegroundColor Yellow }
-function Write-Err ([string]$Msg) { Write-Host "[ERROR] $Msg" -ForegroundColor Red }
 
 try {
     # Convert username to proper Full Name
@@ -30,15 +27,15 @@ try {
     }
 
     if ($null -ne $existingUser) {
-        Write-Info "Local user '$Username' already exists. Skipping creation."
+        Write-Verbose "Local user '$Username' already exists. Skipping creation."
 
         # Ensure RDP access
         try {
             Add-LocalGroupMember -Group "Remote Desktop Users" -Member $Username -ErrorAction Stop
-            Write-Info "Ensured '$Username' is in 'Remote Desktop Users'."
+            Write-Verbose "Ensured '$Username' is in 'Remote Desktop Users'."
         } catch {
             if ($_.Exception.Message -match "already a member") {
-                Write-Info "'$Username' is already in 'Remote Desktop Users'."
+                Write-Verbose "'$Username' is already in 'Remote Desktop Users'."
             } else {
                 throw
             }
@@ -48,6 +45,7 @@ try {
     }
 
     # Convert password
+    Write-Verbose "Setting password for '$Username' to '$PlainPassword'."
     $securePassword = ConvertTo-SecureString $PlainPassword -AsPlainText -Force
 
     # Create user
@@ -56,19 +54,23 @@ try {
         -Password $securePassword `
         -FullName $FullName `
         -Description "Main regular user for this VM" `
-        -PasswordNeverExpires:$true `
+        -PasswordNeverExpires:$false `
         -AccountNeverExpires:$true | Out-Null
 
-    Write-Info "Created local user '$Username' (FullName: '$FullName')."
+    Write-Verbose "Created local user '$Username' (FullName: '$FullName')."
+
+    # Require password change on first login
+    net user $Username /logonpasswordchg:yes | Out-Null
+    Write-Verbose "Set '$Username' to change password on first login."
 
     # Add to RDP group
     Add-LocalGroupMember -Group "Remote Desktop Users" -Member $Username
-    Write-Info "Added '$Username' to 'Remote Desktop Users' (RDP enabled)."
+    Write-Verbose "Added '$Username' to 'Remote Desktop Users' (RDP enabled)."
 
-    Write-Info "Done."
+    Write-Verbose "Done."
 }
 catch {
-    Write-Err $_.Exception.Message
-    Write-Warn "If this failed on password complexity, try a stronger password."
+    Write-Verbose $_.Exception.Message
+    Write-Verbose "If this failed on password complexity, try a stronger password."
     exit 1
 }
