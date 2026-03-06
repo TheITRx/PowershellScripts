@@ -1,15 +1,94 @@
 <#
 .SYNOPSIS
-Minimizes a Windows 11 install by removing removable packages/apps and applying anti-reinstall policies.
+Aggressively debloats Windows 11 and applies hardening to prevent removed components from returning.
 
 .DESCRIPTION
-Runs in elevated PowerShell, removes installed/provisioned Appx packages, targets common Win32 bloat,
-attempts Edge/WebView2 removal, disables update channels that can restore them, and logs every action.
+This script is designed for "minimal Windows 11" lab images.
+It runs in an elevated PowerShell session and performs these phases:
+
+1) Pre-flight and logging
+   - Verifies administrator context.
+   - Creates a log directory.
+   - Starts a transcript (best effort) and records structured actions to CSV.
+
+2) Appx cleanup (installed + provisioned)
+   - Removes removable installed Appx packages for all users, except core shell/runtime components.
+   - Removes provisioned Appx packages from the OS image so new user profiles do not get them.
+   - Force-removes targeted Xbox/LinkedIn package families (installed and provisioned).
+
+3) Win32 cleanup
+   - Scans uninstall registry entries and silently uninstalls matching software families.
+   - Targets common consumer/admin-unwanted software names such as Office/M365, Outlook, Teams, OneDrive,
+     Copilot/Clipchamp/Xbox, and LinkedIn-related entries when present.
+
+4) Edge/WebView and gaming service hardening
+   - Attempts system-level uninstall of Microsoft Edge and WebView2 runtime.
+   - Disables Edge update services and scheduled tasks to reduce reinstall/update behavior.
+   - Disables Xbox/Gaming services where present.
+
+5) Optional feature/capability cleanup
+   - Removes selected optional Windows capabilities (for example Paint, Notepad, Quick Assist,
+     Windows Media Player, Math Recognizer, and legacy IE capability) when installed.
+
+6) Policy and profile hardening
+   - Writes machine policies to reduce consumer-content repopulation and reinstallation behavior.
+   - Applies Store/Edge update restrictions, OneDrive restriction, Copilot/widgets restrictions,
+     and related Explorer/Game policies.
+   - Applies ContentDeliveryManager restrictions for current user and default profile
+     (so new local profiles inherit the restrictions).
+
+7) Start menu cleanup
+   - Removes Xbox/LinkedIn shortcuts that can remain as "ghost" entries.
+
+8) Finalization
+   - Exports CSV results and transcript paths.
+   - Optionally forces immediate reboot when -Reboot is supplied.
+
+Important behavior notes:
+- Uses WhatIf/Confirm via SupportsShouldProcess for safe dry-runs.
+- Non-removable/system-protected components may still remain by Windows design.
+- Some changes only fully apply after sign-out/restart.
+
+.PARAMETER LogDirectory
+Directory used for transcript and CSV output logs.
+
+.PARAMETER KeepMicrosoftStore
+When set, keeps Microsoft Store and Desktop App Installer package families.
+When not set, Store-related removal/hardening policies are applied.
+
+.PARAMETER Reboot
+When set, forces an immediate reboot at the end of script execution.
+Use this for image-build pipelines that require post-cleanup restart.
+
+.OUTPUTS
+CSV log file containing action results (removed/failed/skipped/set), plus optional transcript log.
+
+.EXAMPLE
+.\Remove-Bloat.ps1
+Runs cleanup and policy hardening, then leaves reboot to the operator.
+
+.EXAMPLE
+.\Remove-Bloat.ps1 -WhatIf
+Shows what would be changed without applying modifications.
+
+.EXAMPLE
+.\Remove-Bloat.ps1 -Reboot
+Runs cleanup and forces restart at completion.
+
+.EXAMPLE
+.\Remove-Bloat.ps1 -KeepMicrosoftStore
+Runs cleanup while preserving Microsoft Store/Desktop App Installer.
+
+.NOTES
+- Intended for Windows 11 imaging/lab environments.
+- Must run elevated (Run as Administrator).
+- Review output CSV in LogDirectory for exact per-item outcomes.
 #>
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$LogDirectory = 'C:\ProgramData\InfraScripts',
-    [switch]$KeepMicrosoftStore
+    [switch]$KeepMicrosoftStore,
+    [switch]$Reboot
 )
 
 # Fail fast and keep strict handling so partial cleanup does not silently continue.
@@ -863,8 +942,16 @@ finally {
     $script:RemovalRecords | Export-Csv -Path $RemovalLogPath -NoTypeInformation -Encoding UTF8
     Write-Info ("Debloat complete. Results: {0}" -f $RemovalLogPath)
     Write-Info ("Transcript: {0}" -f $TranscriptPath)
-    Write-Host '[INFO] Restart the machine to finalize component removal.'
     if ($transcriptStarted) {
         Stop-Transcript | Out-Null
+    }
+
+    if ($Reboot) {
+        if ($PSCmdlet.ShouldProcess($env:COMPUTERNAME, 'Restart computer (force)')) {
+            Write-Warn 'Reboot switch is enabled. Forcing reboot now.'
+            shutdown /r /t 30 /f /c "Server will reboot in 30 seconds. Save your work!"
+        }
+    } else {
+        Write-Host '[INFO] Restart the machine to finalize component removal.'
     }
 }
