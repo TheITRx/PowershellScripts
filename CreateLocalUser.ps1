@@ -54,14 +54,14 @@ try {
         -Password $securePassword `
         -FullName $FullName `
         -Description "Main regular user for this VM" `
-        -PasswordNeverExpires:$false `
+        -PasswordNeverExpires:$true `
         -AccountNeverExpires:$true | Out-Null
 
     Write-Verbose "Created local user '$Username' (FullName: '$FullName')."
 
     # Require password change on first login
-    net user $Username /logonpasswordchg:yes | Out-Null
-    Write-Verbose "Set '$Username' to change password on first login."
+    #net user $Username /logonpasswordchg:yes | Out-Null
+    #Write-Verbose "Set '$Username' to change password on first login."
 
     # Add to RDP group
     Add-LocalGroupMember -Group "Remote Desktop Users" -Member $Username
