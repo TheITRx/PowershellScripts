@@ -28,7 +28,9 @@ $scriptContent = @"
 
 try {
     cmd.exe /C "cmdkey /add:``"$StorageAccountFQDN``" /user:``"localhost\$StorageAccountName``" /pass:``"$StorageKey``""
-    New-PSDrive -Name $DriveLetter -PSProvider FileSystem -Root "\\$StorageAccountFQDN\$ShareName" -Persist
+    if (-not (Get-PSDrive -Name $DriveLetter -ErrorAction SilentlyContinue)) {
+        New-PSDrive -Name $DriveLetter -PSProvider FileSystem -Root "\\$StorageAccountFQDN\$ShareName" -Persist
+    }
 
     "[`$timestamp] SUCCESS: Mapped drive $DriveLetter to \\$StorageAccountFQDN\$ShareName." | Out-File -FilePath `$resultPath -Append -Encoding utf8
 }
@@ -55,12 +57,16 @@ $principal = New-ScheduledTaskPrincipal `
                 -GroupId "Users" `
                 #-RunLevel Highest
 
-# Register task
-Register-ScheduledTask `
-    -TaskName $TaskName `
-    -Action $action `
-    -Trigger $trigger `
-    -Principal $principal `
-    -Force
+# Register task if missing
+if (-not (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue)) {
+    Register-ScheduledTask `
+        -TaskName $TaskName `
+        -Action $action `
+        -Trigger $trigger `
+        -Principal $principal `
+        -Force
 
-Write-Host "Scheduled task '$TaskName' created successfully."
+    Write-Host "Scheduled task '$TaskName' created successfully."
+} else {
+    Write-Host "Scheduled task '$TaskName' already exists. Skipping creation."
+}
